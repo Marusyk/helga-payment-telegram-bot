@@ -1,14 +1,10 @@
-# helga-payment-telegram-bot
+# Helga Payment Telegram Bot
+
 The personal Telegram bot that calculate payment base on currency rate
 
-Install Required Libraries
-`pip install python-telegram-bot requests`
-
-Deploy to https://www.pythonanywhere.com/user/marusyk/
-
 Feature ideas:
-- add database to track payments
+- add database to track payments (azure table)
 - reminders
 - add visualization
-- configure CI/CD
+- configure CI/CD (GutHub Actions)
 - find a better hosting (Code Capsules)
