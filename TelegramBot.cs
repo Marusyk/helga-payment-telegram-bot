@@ -7,24 +7,16 @@ using Telegram.Bot.Types;
 
 namespace Helga.Function;
 
-public sealed class TelegramBot
+public sealed class TelegramBot(ITelegramBotClient botClient, PrivatBankClient pbClient, DataStorage dataStorage, ILogger<TelegramBot> logger)
 {
-    private readonly ILogger<TelegramBot> _logger;
-    private readonly PrivatbankClient _pbClient;
-    private readonly ITelegramBotClient _botClient;
-
-    public TelegramBot(PrivatbankClient pbClient, ITelegramBotClient botClient, ILogger<TelegramBot> logger)
-    {
-        _pbClient = pbClient;
-        _botClient = botClient;
-        _logger = logger;
-    }
+    private const string HelpMessage = "Пиши:\nКурс або /rate - щоб подивитися курс\nТиждень або /week - щоб подивитися курс за тиждень\nСтан або /state - дізнатися поточний стан\n/add - додати оплату";
 
     [Function(SetupBot.UpdateFunctionName)]
     public async Task Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData request)
     {
-        _logger.LogInformation("C# trigger function processed a request.");
+        logger.LogInformation("C# trigger function processed a request.");
 
+        long chatId = 0;
         try
         {
             var body = await request.ReadAsStringAsync()
@@ -33,16 +25,77 @@ public sealed class TelegramBot
             var update = JsonSerializer.Deserialize<Update>(body, JsonBotAPI.Options);
             if (update is null)
             {
-                _logger.LogWarning("Unable to deserialize Update object.");
+                logger.LogWarning("Unable to deserialize Update object.");
                 return;
             }
 
-            var rate = await _pbClient.GetRate();
-            await _botClient.SendMessage(chatId: update.Message.Chat.Id, text: $"Курс: {rate.BuyPrice} на {rate.OriginalDate.Date} \nЗ вас {2877.3 * rate.BuyPrice}грн = 2 877.3💲 * {rate.BuyPrice}");
+            chatId = update.Message.Chat.Id;
+
+            if (update.Message.Text.Equals("/start", StringComparison.OrdinalIgnoreCase))
+            {
+                await botClient.SendMessage(chatId, $"👋 Привіт Іринка або Роман!\n\n{HelpMessage}");
+            }
+            else if (update.Message.Text.Equals("/rate", StringComparison.OrdinalIgnoreCase) || update.Message.Text.Contains("курс", StringComparison.OrdinalIgnoreCase))
+            {
+                await HandleRateCommand(chatId);
+            }
+            else if (update.Message.Text.Equals("/week", StringComparison.OrdinalIgnoreCase) || update.Message.Text.Contains("тиждень", StringComparison.OrdinalIgnoreCase))
+            {
+                await HandleRatesCommand(chatId);
+            }
+            else if (update.Message.Text.Equals("/state", StringComparison.OrdinalIgnoreCase) || update.Message.Text.Contains("стан", StringComparison.OrdinalIgnoreCase))
+            {
+                await HandleStateCommand(chatId);
+            }
+            else if (update.Message.Text.Equals("/add", StringComparison.OrdinalIgnoreCase))
+            {
+                await HandleAddCommand(chatId);
+            }
+            else
+            {
+                await botClient.SendMessage(chatId, $"🙈 Невідома команда! {HelpMessage}");
+            }
         }
         catch(Exception e)
         {
-            _logger.LogError("Exception: {Message}", e.Message);
+            logger.LogError("Exception: {Message}", e.Message);
+            if (chatId != 0)
+            {
+                await botClient.SendMessage(chatId, $"😵 Error: {e.Message}");
+            }
         }
+    }
+
+    private async Task HandleAddCommand(long chatId)
+    {
+        var rate = await pbClient.GetRate();
+        await dataStorage.AddPayment(rate.BuyPrice);
+        var message = dataStorage.GetPayments();
+
+        await botClient.SendMessage(chatId, $"Оплата по курсу {rate.BuyPrice}\n\n {message}");
+    }
+
+    private async Task HandleStateCommand(long chatId)
+    {
+        var message = dataStorage.GetPayments();
+        await botClient.SendMessage(chatId, message);
+    }
+
+    private async Task HandleRateCommand(long chatId)
+    {
+        var rate = await pbClient.GetRate();
+        await botClient.SendMessage(chatId, $"{rate.State} Курс: {rate.BuyPrice} на {rate.Date} \n\nЗ вас {2877.3f * rate.BuyPrice}грн = 2 877.3$ * {rate.BuyPrice}");
+    }
+
+    private async Task HandleRatesCommand(long chatId)
+    {
+        var rates = await pbClient.GetRates();
+        string message = "Курси за тиждень:\n\n";
+        foreach (var rate in rates)
+        {
+            message += $"{rate.Date} Курс: {rate.BuyPrice}\n";
+
+        }
+        await botClient.SendMessage(chatId, message);
     }
 }

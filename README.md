@@ -7,4 +7,3 @@ Feature ideas:
 - reminders
 - add visualization
 - configure CI/CD (GutHub Actions)
-- find a better hosting (Code Capsules)
