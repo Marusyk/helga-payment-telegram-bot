@@ -46,7 +46,8 @@ public sealed class DataStorage
         sb.AppendLine($"Платежів: {paidCount}/{totalCount} ({paymentPercentage}%)");
         sb.AppendLine(Environment.NewLine);
         var paidPercentage = totalPaid * 100 / totalAmount;
-        sb.AppendLine($"Сплачено: {totalPaid}$ з {totalAmount}$ ({paidPercentage}%)");
+        sb.AppendLine($"Сплачено: {totalPaid}$ з {totalAmount}$");
+        sb.AppendLine(GePtrogressBar((double)paidPercentage));
         sb.AppendLine(Environment.NewLine);
         sb.AppendLine($"Залишилося: {totalUnpaid}$");
         return sb.ToString();
@@ -61,5 +62,25 @@ public sealed class DataStorage
         entity["CurrencyRate"] = rate;
 
         await _tableClient.UpdateEntityAsync(entity, ETag.All, TableUpdateMode.Replace);
+    }
+
+    private static string GePtrogressBar(double percentage)
+    {
+        int length = 10;
+        int filledLength = (int)Math.Round(length * percentage / 100.0);
+        StringBuilder sb = new();
+        string fillChar = "🟩";
+        string emptyChar = "⬛";
+
+        for (int i = 0; i < filledLength; i++)
+        {
+            sb.Append(fillChar);
+        }
+        for (int i = filledLength; i < length; i++)
+        {
+            sb.Append(emptyChar);
+        }
+        sb.Append($" {percentage}%");
+        return sb.ToString();
     }
 }

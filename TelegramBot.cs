@@ -1,6 +1,7 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using System.Text;
 using System.Text.Json;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -9,7 +10,7 @@ namespace Helga.Function;
 
 public sealed class TelegramBot(ITelegramBotClient botClient, PrivatBankClient pbClient, DataStorage dataStorage, ILogger<TelegramBot> logger)
 {
-    private const string HelpMessage = "Пиши:\nКурс або /rate - щоб подивитися курс\nТиждень або /week - щоб подивитися курс за тиждень\nСтан або /state - дізнатися поточний стан\n/add - додати оплату";
+    private const string HelpMessage = "Пиши:\nКурс або /rate - щоб подивитися курс\nСтан або /state - дізнатися поточний стан\n/add - додати оплату";
 
     [Function(SetupBot.UpdateFunctionName)]
     public async Task Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData request)
@@ -38,10 +39,6 @@ public sealed class TelegramBot(ITelegramBotClient botClient, PrivatBankClient p
             else if (update.Message.Text.Equals("/rate", StringComparison.OrdinalIgnoreCase) || update.Message.Text.Contains("курс", StringComparison.OrdinalIgnoreCase))
             {
                 await HandleRateCommand(chatId);
-            }
-            else if (update.Message.Text.Equals("/week", StringComparison.OrdinalIgnoreCase) || update.Message.Text.Contains("тиждень", StringComparison.OrdinalIgnoreCase))
-            {
-                await HandleRatesCommand(chatId);
             }
             else if (update.Message.Text.Equals("/state", StringComparison.OrdinalIgnoreCase) || update.Message.Text.Contains("стан", StringComparison.OrdinalIgnoreCase))
             {
@@ -72,7 +69,7 @@ public sealed class TelegramBot(ITelegramBotClient botClient, PrivatBankClient p
         await dataStorage.AddPayment(rate.BuyPrice);
         var message = dataStorage.GetPayments();
 
-        await botClient.SendMessage(chatId, $"Оплата по курсу {rate.BuyPrice}\n\n {message}");
+        await botClient.SendMessage(chatId, $"💲 Оплата по курсу {rate.BuyPrice}\n\n {message}");
     }
 
     private async Task HandleStateCommand(long chatId)
@@ -84,18 +81,15 @@ public sealed class TelegramBot(ITelegramBotClient botClient, PrivatBankClient p
     private async Task HandleRateCommand(long chatId)
     {
         var rate = await pbClient.GetRate();
-        await botClient.SendMessage(chatId, $"{rate.State} Курс: {rate.BuyPrice} на {rate.Date} \n\nЗ вас {2877.3f * rate.BuyPrice}грн = 2 877.3$ * {rate.BuyPrice}");
-    }
-
-    private async Task HandleRatesCommand(long chatId)
-    {
+        StringBuilder sb = new($"{rate.State} Курс: {rate.BuyPrice} на {rate.Date} \n\nЗ вас {2877.3f * rate.BuyPrice} грн = 2 877.3$ * {rate.BuyPrice}");
+        sb.AppendLine(Environment.NewLine);
+        sb.AppendLine("📅 Курс за тиждень:");
         var rates = await pbClient.GetRates();
-        string message = "Курси за тиждень:\n\n";
-        foreach (var rate in rates)
+        foreach (var r in rates)
         {
-            message += $"{rate.Date} Курс: {rate.BuyPrice}\n";
-
+            sb.AppendLine($"{r.Date} Курс: {r.BuyPrice}");
         }
-        await botClient.SendMessage(chatId, message);
+
+        await botClient.SendMessage(chatId, sb.ToString());
     }
 }

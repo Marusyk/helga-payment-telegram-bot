@@ -18,7 +18,8 @@ public sealed class PrivatBankClient(HttpClient httpClient)
 
         var rateForYesterday = response.FirstOrDefault(x => x.OriginalDate.Date == dateTime.AddDays(-1).Date.ToString(dateFormat));
 
-        return (rateForToday.OriginalDate.Date[..^7], rateForToday.BuyPrice, rateForToday.BuyPrice > rateForYesterday?.BuyPrice ? "⬆️" : "⬇️");
+        string trend = rateForToday.BuyPrice > rateForYesterday?.BuyPrice ? "⬆️" : rateForToday.BuyPrice < rateForYesterday?.BuyPrice ? "⬇️" : "➡️";
+        return (rateForToday.OriginalDate.Date[..^7], rateForToday.BuyPrice, trend);
     }
 
     public async Task<IEnumerable<(string Date, float BuyPrice)>> GetRates()
