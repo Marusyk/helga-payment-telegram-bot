@@ -2,7 +2,8 @@
 
 The personal Telegram bot that calculates payments based on currency rates
 
-![image](https://github.com/user-attachments/assets/0bb84d17-6e2d-440a-a69c-51a98ba553de)
+![image](https://github.com/user-attachments/assets/87f50fa4-ae81-4935-b933-7fb86a0ca1e8)
+
 
 Feature ideas:
 - reminders
