@@ -18,9 +18,9 @@ public sealed class SetupBot
     public const string UpdateFunctionName = "handleupdate";
 
     [Function(SetUpFunctionName)]
-    public async Task RunAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestData req)
+    public async Task RunAsync([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData request)
     {
-        var handleUpdateFunctionUrl = req.Url.ToString().Replace(SetUpFunctionName, UpdateFunctionName, ignoreCase: true, culture: CultureInfo.InvariantCulture);
+        var handleUpdateFunctionUrl = request.Url.ToString().Replace(SetUpFunctionName, UpdateFunctionName, ignoreCase: true, culture: CultureInfo.InvariantCulture);
         await _botClient.SetWebhook(handleUpdateFunctionUrl);
     }
 }
