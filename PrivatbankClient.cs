@@ -5,7 +5,7 @@ namespace Helga.Function;
 
 public sealed class PrivatBankClient(HttpClient httpClient)
 {
-    public async Task<(string Date, float BuyPrice, string State)> GetRate()
+    public async Task<(string Date, decimal BuyPrice, string State)> GetRate()
     {
         var response = await httpClient.GetFromJsonAsync<IEnumerable<Rate>>("https://privatbank.ua/rates/get-archive?period=day&from_currency=UAH&to_currency=USD")
             ?? throw new Exception("Can not get response from Privatbank API");
@@ -22,7 +22,7 @@ public sealed class PrivatBankClient(HttpClient httpClient)
         return (rateForToday.OriginalDate.Date[..^7], rateForToday.BuyPrice, trend);
     }
 
-    public async Task<IEnumerable<(string Date, float BuyPrice)>> GetRates()
+    public async Task<IEnumerable<(string Date, decimal BuyPrice)>> GetRates()
     {
         var response = await httpClient.GetFromJsonAsync<IEnumerable<Rate>>("https://privatbank.ua/rates/get-archive?period=week&from_currency=UAH&to_currency=USD")
             ?? throw new Exception("Can not get response from Privatbank API");
@@ -37,7 +37,7 @@ public class Rate
     public OriginalDate OriginalDate { get; set; }
 
     [JsonPropertyName("buyPrice")]
-    public float BuyPrice { get; set; }
+    public decimal BuyPrice { get; set; }
 }
 public class OriginalDate
 {

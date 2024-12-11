@@ -42,9 +42,9 @@ public sealed class DataStorage
         }
 
         StringBuilder sb = new();
-        var paymentPercentage = paidCount * 100 / totalCount;
-        sb.AppendLine($"Платежів: {paidCount}/{totalCount} ({paymentPercentage}%)");
-        sb.AppendLine(Environment.NewLine);
+        //var paymentPercentage = paidCount * 100 / totalCount;
+        //sb.AppendLine($"Платежів: {paidCount}/{totalCount} ({paymentPercentage}%)");
+        //sb.AppendLine(Environment.NewLine);
         var paidPercentage = totalPaid * 100 / totalAmount;
         sb.AppendLine($"Сплачено: {totalPaid}$ з {totalAmount}$");
         sb.AppendLine(GePtrogressBar((double)paidPercentage));

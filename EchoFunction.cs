@@ -10,6 +10,6 @@ public class EchoFunction(PrivatBankClient pbClient)
     public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get")] HttpRequest request)
     {
         var rate = await pbClient.GetRate();
-        return new OkObjectResult($"Welcome to Azure Functions! Rate is {rate.BuyPrice} on {rate.Date}\nSo, {2877.3 * rate.BuyPrice} UAH = 2 877.3 USD * {rate.BuyPrice}");
+        return new OkObjectResult($"Welcome to Azure Functions! Rate is {rate.BuyPrice:F2} on {rate.Date}\nSo, {2877.3m * rate.BuyPrice} UAH = 2 877.3 USD * {rate.BuyPrice:F2}");
     }
 }
