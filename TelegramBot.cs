@@ -10,7 +10,9 @@ namespace Helga.Function;
 
 public sealed class TelegramBot(ITelegramBotClient botClient, PrivatBankClient pbClient, DataStorage dataStorage, ILogger<TelegramBot> logger)
 {
-    private const string HelpMessage = "Пиши:\nКурс або /rate - щоб подивитися курс\nСтан або /state - дізнатися поточний стан\n/adda - додати оплату по квартирі\n/addp - додати оплату по паркомісцю";
+    private const string HelpMessage = "Пиши:\nКурс або /rate - щоб подивитися курс\nСтан або /state - дізнатися поточний стан\n/apartment - додати оплату по квартирі\n/parking - додати оплату по паркомісцю";
+    private const decimal ApartmentMonthly = 2210.40m;
+    private const decimal ParkingMonthly = 666.90m;
 
     [Function(SetupBot.UpdateFunctionName)]
     public async Task Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData request)
@@ -44,13 +46,13 @@ public sealed class TelegramBot(ITelegramBotClient botClient, PrivatBankClient p
             {
                 await HandleStateCommand(chatId);
             }
-            else if (update.Message.Text.Equals("/adda", StringComparison.OrdinalIgnoreCase))
+            else if (update.Message.Text.Equals("/apartment", StringComparison.OrdinalIgnoreCase))
             {
-                await HandleAddApartmentCommand(chatId);
+                await HandlePayApartmentCommand(chatId);
             }
-            else if (update.Message.Text.Equals("/addp", StringComparison.OrdinalIgnoreCase))
+            else if (update.Message.Text.Equals("/parking", StringComparison.OrdinalIgnoreCase))
             {
-                await HandleAddParkingCommand(chatId);
+                await HandlePayParkingCommand(chatId);
             }
             else
             {
@@ -67,24 +69,22 @@ public sealed class TelegramBot(ITelegramBotClient botClient, PrivatBankClient p
         }
     }
 
-    private async Task HandleAddApartmentCommand(long chatId)
+    private async Task HandlePayApartmentCommand(long chatId)
     {
-        await botClient.SendMessage(chatId, $"Вибач, це поки не працює");
-        // var rate = await pbClient.GetRate();
-        // await dataStorage.AddPayment(rate.BuyPrice);
-        // var message = dataStorage.GetPayments();
+        var rate = await pbClient.GetRate();
+        await dataStorage.AddPayment(ApartmentMonthly, rate.BuyPrice, PaymentType.Apartment);
+        var message = dataStorage.GetPayments();
 
-        // await botClient.SendMessage(chatId, $"💲 Оплата по курсу {rate.BuyPrice}\n\n {message}");
+        await botClient.SendMessage(chatId, $"💲 Оплата за квартиру по курсу {rate.BuyPrice:F2}\n\n {message}");
     }
 
-    private async Task HandleAddParkingCommand(long chatId)
+    private async Task HandlePayParkingCommand(long chatId)
     {
-        await botClient.SendMessage(chatId, $"Вибач, це поки не працює");
-        // var rate = await pbClient.GetRate();
-        // await dataStorage.AddPayment(rate.BuyPrice);
-        // var message = dataStorage.GetPayments();
+        var rate = await pbClient.GetRate();
+        await dataStorage.AddPayment(ParkingMonthly, rate.BuyPrice, PaymentType.Parking);
+        var message = dataStorage.GetPayments();
 
-        // await botClient.SendMessage(chatId, $"💲 Оплата по курсу {rate.BuyPrice}\n\n {message}");
+        await botClient.SendMessage(chatId, $"💲 Оплата за паркінг по курсу {rate.BuyPrice:F2}\n\n {message}");
     }
 
     private async Task HandleStateCommand(long chatId)
@@ -95,15 +95,13 @@ public sealed class TelegramBot(ITelegramBotClient botClient, PrivatBankClient p
 
     private async Task HandleRateCommand(long chatId)
     {
-        var apartmentMonthly = 2210.40m;
-        var parkingMonthly = 666.90m;
-        var total = apartmentMonthly + parkingMonthly; // 2 877.3$
+        var total = ApartmentMonthly + ParkingMonthly; // 2 877.3$
 
         var rate = await pbClient.GetRate();
         StringBuilder sb = new($"{rate.State} Курс: {rate.BuyPrice:F2} на {rate.Date} \n\nЗ вас {total}$ * {rate.BuyPrice:F2} = {total * rate.BuyPrice:F2} грн");
         sb.AppendLine(Environment.NewLine);
-        sb.AppendLine($"Квартира: {apartmentMonthly}$ * {rate.BuyPrice:F2} = {apartmentMonthly * rate.BuyPrice:F2}");
-        sb.AppendLine($"Паркомісце: {parkingMonthly}$ * {rate.BuyPrice:F2} = {parkingMonthly * rate.BuyPrice:F2}");
+        sb.AppendLine($"Квартира: {ApartmentMonthly}$ * {rate.BuyPrice:F2} = {ApartmentMonthly * rate.BuyPrice:F2}");
+        sb.AppendLine($"Паркомісце: {ParkingMonthly}$ * {rate.BuyPrice:F2} = {ParkingMonthly * rate.BuyPrice:F2}");
         sb.AppendLine(Environment.NewLine);
         sb.AppendLine("📅 Курс за тиждень:");
         var rates = await pbClient.GetRates();

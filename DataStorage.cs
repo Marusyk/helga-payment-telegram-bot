@@ -17,59 +17,65 @@ public sealed class DataStorage
 
     public string GetPayments()
     {
+        const int paymentCount = 31;
+        const decimal apartmentTotal = 73680m;
+        const decimal parkingTotal = 22230m;
+
         var entities = _tableClient.Query<TableEntity>();
 
-        int totalCount = entities.Count();
-        int paidCount = 0;
-        decimal totalPaid = 0;
-        decimal totalUnpaid = 0;
-        decimal totalAmount = 0;
+        var apartmentEntities = entities.Where(e => e.PartitionKey == PaymentType.Apartment.ToString());
+        var apartmentPaymentCount = apartmentEntities.Count();
+        decimal apartmentPaymentPercentage = (decimal)apartmentPaymentCount * 100 / paymentCount;
+        var apartmentPaymentTotal = apartmentEntities.Sum(e => Convert.ToDecimal(e["Price"]));
+        decimal apartmentTotalPercentage = (decimal)apartmentPaymentTotal * 100 / apartmentTotal;
+        var apartmentTotalUnpaid = apartmentTotal - apartmentPaymentTotal;
 
-        foreach (TableEntity entity in entities)
-        {
-            decimal price = Convert.ToDecimal(entity["Price"]);
-            bool paid = Convert.ToBoolean(entity["Paid"]);
-            totalAmount += price;
-            if (paid)
-            {
-                paidCount += 1;
-                totalPaid += price;
-            }
-            else
-            {
-                totalUnpaid += price;
-            }
-        }
+        var parkingEntities = entities.Where(e => e.PartitionKey == PaymentType.Parking.ToString());
+        var parkingPaymentCount = parkingEntities.Count();
+        decimal parkingPaymentPercentage = (decimal)parkingPaymentCount * 100 / paymentCount;
+        var parkingPaymentTotal = parkingEntities.Sum(e => Convert.ToDecimal(e["Price"]));
+        decimal parkingTotalPercentage = (decimal)parkingPaymentTotal * 100 / parkingTotal;
+        var parkingTotalUnpaid = parkingTotal - parkingPaymentTotal;
+
+        var totalPaid = apartmentPaymentTotal + parkingPaymentTotal;
+        decimal totalPaidPercentage = (decimal)totalPaid * 100 / (apartmentTotal + parkingTotal);
+        var totalUnpaid = apartmentTotalUnpaid + parkingTotalUnpaid;
 
         StringBuilder sb = new();
-        //var paymentPercentage = paidCount * 100 / totalCount;
-        //sb.AppendLine($"Платежів: {paidCount}/{totalCount} ({paymentPercentage}%)");
-        //sb.AppendLine(Environment.NewLine);
-        var paidPercentage = totalPaid * 100 / totalAmount;
-        sb.AppendLine($"Сплачено: {totalPaid}$ з {totalAmount}$");
-        sb.AppendLine(GePtrogressBar((double)paidPercentage));
+        sb.AppendLine($"Платежів за квартиру: {apartmentPaymentCount}/{paymentCount} ({apartmentPaymentPercentage:F2}%)");
+        sb.AppendLine($"Сплачено: {apartmentPaymentTotal}$ з {apartmentTotal}$");
+        sb.AppendLine(GePtrogressBar((double)apartmentTotalPercentage));
+        sb.AppendLine($"Залишилося: {apartmentTotalUnpaid}$");
         sb.AppendLine(Environment.NewLine);
+        sb.AppendLine($"Платежів за паркінг: {parkingPaymentCount}/{paymentCount} ({parkingPaymentPercentage:F2}%)");
+        sb.AppendLine($"Сплачено: {parkingPaymentTotal}$ з {parkingTotal}$");
+        sb.AppendLine(GePtrogressBar((double)parkingTotalPercentage));
+        sb.AppendLine($"Залишилося: {parkingTotalUnpaid}$");
+        sb.AppendLine(Environment.NewLine);
+        sb.AppendLine($"Сплачено: {totalPaid}$ з {apartmentTotal + parkingTotal}$");
+        sb.AppendLine(GePtrogressBar((double)totalPaidPercentage, "🟦"));
         sb.AppendLine($"Залишилося: {totalUnpaid}$");
+
         return sb.ToString();
     }
 
-    public async Task AddPayment(float rate)
+    public async Task AddPayment(decimal price, decimal rate, PaymentType paymentType)
     {
-        var month = DateTime.Now.Month.ToString();
-        var entities = _tableClient.Query<TableEntity>();
-        var entity = entities.First(x => x.PartitionKey.Contains(month));
-        entity["Paid"] = true;
-        entity["CurrencyRate"] = rate;
+        var entity = new TableEntity(paymentType.ToString(), Guid.NewGuid().ToString())
+        {
+            { "Price", price },
+            { "Date", DateTimeOffset.UtcNow },
+            { "CurrencyRate", rate }
+        };
 
-        await _tableClient.UpdateEntityAsync(entity, ETag.All, TableUpdateMode.Replace);
+        await _tableClient.AddEntityAsync(entity);
     }
 
-    private static string GePtrogressBar(double percentage)
+    private static string GePtrogressBar(double percentage, string fillChar = "🟩")
     {
         int length = 10;
         int filledLength = (int)Math.Round(length * percentage / 100.0);
         StringBuilder sb = new();
-        string fillChar = "🟩";
         string emptyChar = "⬛";
 
         for (int i = 0; i < filledLength; i++)
@@ -80,7 +86,13 @@ public sealed class DataStorage
         {
             sb.Append(emptyChar);
         }
-        sb.Append($" {percentage}%");
+        sb.Append($" {percentage:F2}%");
         return sb.ToString();
     }
+}
+
+public enum PaymentType
+{
+    Apartment,
+    Parking
 }
